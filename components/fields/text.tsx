@@ -25,6 +25,13 @@ export const TextField: React.FC<TextFieldProps> = ({ label, name, required = fa
     return (
         <Field label={label} errors={errors}>
             <input
+                style={{
+                    width: '240px',
+                    fontSize: '16px',
+                    padding: '8px',
+                    border: '1px solid #666666',
+                    borderRadius: '4px',
+                }}
                 value={value}
                 onChange={(event) => {
                     onChange(event.target.value);

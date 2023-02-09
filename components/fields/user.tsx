@@ -15,8 +15,10 @@ interface UserFieldProps extends Pick<FieldProps, 'label'> {
 export const UserField: React.FC<UserFieldProps> = ({ label, name }) => {
     return (
         <FieldGroup name={name}>
-            <TextField label="First Name" name="firstName" required />
-            <TextField label="Last Name" name="lastName" />
+            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                <TextField label="First Name" name="firstName" required />
+                <TextField label="Last Name" name="lastName" />
+            </div>
         </FieldGroup>
     );
 };
