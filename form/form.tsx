@@ -6,13 +6,20 @@ export interface Validator {
     message: string;
 }
 
+export interface Field {
+    name: string;
+    validators: Validator[];
+}
+
+interface FieldErrors {
+    [fieldName: string]: string[];
+};
+
 interface Value<TValue extends object> {
+    registerField: (fieldName: string, field: Field) => (() => void);
     value: TValue;
     setFieldValue: (fieldName: string, fieldValue: any) => void;
-    registerFieldValidators: (fieldName: string, validators: (Validator)[]) => (() => void);
-    fieldErrors: {
-        [fieldName in keyof TValue]: string[];
-    };
+    fieldErrors: FieldErrors;
 }
 
 const context = React.createContext<Value<any> | null>(null);
@@ -30,25 +37,25 @@ export function Form<TValue>({ value, onChange, children }: FormProps<TValue>) {
         onChange({ ...value, ...changes });
     };
 
-    const [fieldValidators, setFieldValidators] = useState<{ [fieldName: string]: Validator[] }>({});
-    const registerFieldValidators = useCallback((fieldName: string, validators: Validator[]) => {
-        setFieldValidators((prevState) => ({ ...prevState, [fieldName]: validators }));
+    const [fields, setFields] = useState<{ [name: string]: Field }>({});
+    const registerField = useCallback((name: string, field: Field) => {
+        setFields((prevState) => ({ ...prevState, [name]: field }));
         return () => {
-            setFieldValidators((prevState) => {
+            setFields((prevState) => {
                 const newState = { ...prevState };
-                delete newState[fieldName];
+                delete newState[name];
                 return newState;
             });
         };
     }, []);
 
     const fieldErrors: any = {};
-    for (const fieldName of Object.keys(fieldValidators)) {
+    for (const fieldName of Object.keys(fields)) {
         const fieldValue = (value as any)[fieldName];
-        const validators = fieldValidators[fieldName];
+        const field = fields[fieldName];
         const messages: string[] = [];
-        if (validators) {
-            for (const validator of validators) {
+        if (field) {
+            for (const validator of field.validators) {
                 if (validator.validate(fieldValue, value) === false) {
                     messages.push(validator.message);
                 }
@@ -60,9 +67,9 @@ export function Form<TValue>({ value, onChange, children }: FormProps<TValue>) {
     return (
         <context.Provider
             value={{
+                registerField,
                 value,
                 setFieldValue,
-                registerFieldValidators,
                 fieldErrors,
             }}
         >{children}</context.Provider>
@@ -77,31 +84,17 @@ function useFormValue() {
     return value;
 }
 
-interface FieldOptions {
-    validators?: (Validator | false | null | undefined)[];
-}
-
-export function useField<TValue>(name: string, {
-    validators: rawValidators = [],
-}: FieldOptions = {}) {
-    const { value, setFieldValue, registerFieldValidators, fieldErrors } = useFormValue();
-    if (value[name] === undefined) {
-        throw new Error(`Field ${name} is undefined in form value.`);
-    }
+export function useField<TValue>(name: string, field: Field) {
+    const { registerField, value, setFieldValue, fieldErrors } = useFormValue();
 
     const onChange = useCallback((value: TValue) => {
         setFieldValue(name, value);
     }, [name, setFieldValue]);
 
-    let validators = rawValidators.filter(Boolean) as Validator[];
-    const validatorsRef = useRef(validators);
-    const validatorsNotUpdated = validatorsRef.current.length === validators.length && validatorsRef.current.every((v, index) => v === validators[index]);
-    validators = validatorsNotUpdated ? validatorsRef.current : validators;
-    validatorsRef.current = validators;
     useEffect(() => {
-        const unregister = registerFieldValidators(name, validators);
+        const unregister = registerField(name, field);
         return unregister;
-    }, [registerFieldValidators, name, validators]);
+    }, [registerField, name, field]);
 
     return {
         value: value[name] as TValue,
@@ -110,21 +103,81 @@ export function useField<TValue>(name: string, {
     };
 }
 
-interface FieldGroupListProps<TValue> {
-    value: TValue[];
-    onChange: (value: TValue) => void;
-    children: React.ReactNode;
+interface FieldGroupProps<TValue> {
+    name: string;
+    validators?: Validator[];
+    children: React.ReactNode | (
+        (fieldState: {
+            value: TValue;
+            errors: string[];
+        }) => React.ReactNode
+    );
 }
 
-export function FieldGroupList<TValue>({ children }: FieldGroupListProps<TValue>) {
+export function FieldGroup<TValue>({
+    name: ownName,
+    validators = [],
+    children,
+}: FieldGroupProps<TValue>) {
+    const {
+        registerField: registerOwnField,
+        value: parentValue,
+        setFieldValue: setOwnFieldValue,
+        fieldErrors: parentFieldErrors,
+    } = useFormValue();
+
+    const field = useMemo(() => ({ name: ownName, validators }), [ownName, validators]);
+    useEffect(() => {
+        const unregister = registerOwnField(ownName, field);
+        return unregister;
+    }, [registerOwnField, ownName, field]);
+
+    const parentValueRef = useRef(parentValue);
+    parentValueRef.current = parentValue;
+    const setFieldValue = useCallback((name: string, value: TValue) => {
+        setOwnFieldValue(ownName, {...parentValueRef.current, [name]: value});
+    }, [ownName, setOwnFieldValue]);
+
+    const ownValue = parentValue[ownName] as TValue;
+
+    const [fields, setFields] = useState<{ [name: string]: Field }>({});
+    const registerField = useCallback((name: string, field: Field) => {
+        setFields((prevState) => ({ ...prevState, [name]: field }));
+        return () => {
+            setFields((prevState) => {
+                const newState = { ...prevState };
+                delete newState[name];
+                return newState;
+            });
+        };
+    }, []);
+
+    const fieldErrors: any = {};
+    for (const fieldName of Object.keys(fields)) {
+        const fieldValue = (ownValue as any)[fieldName];
+        const field = fields[fieldName];
+        const messages: string[] = [];
+        if (field) {
+            for (const validator of field.validators) {
+                if (validator.validate(fieldValue, ownValue) === false) {
+                    messages.push(validator.message);
+                }
+            }
+        }
+        fieldErrors[fieldName] = messages;
+    }
+
     return (
         <context.Provider
             value={{
-                value: {},
-                setFieldValue: () => null,
-                registerFieldValidators: () => () => null,
-                fieldErrors: {},
+                registerField,
+                value: ownValue,
+                setFieldValue,
+                fieldErrors,
             }}
-        >{children}</context.Provider>
+        >{typeof children === 'function' ? children({
+            value: ownValue,
+            errors: parentFieldErrors[ownName],
+        }) : children}</context.Provider>
     );
 }

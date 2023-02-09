@@ -1,14 +1,14 @@
 import Head from 'next/head'
 import { Form } from '@/form/form'
 import { useState } from 'react'
-import { UsersField, UserValue } from '@/components/fields/users';
+import { UserField, UserValue } from '@/components/fields/user';
 
 interface Value {
-    users: UserValue[],
+    user: UserValue,
 }
 
 export default function Demo() {
-    const [value, setValue] = useState<Value>({ users: [] });
+    const [value, setValue] = useState<Value>({ user: { firstName: '', lastName: '' } });
     return (
         <>
             <Head>
@@ -19,7 +19,7 @@ export default function Demo() {
             </Head>
             <main>
                 <Form<Value> value={value} onChange={setValue}>
-                    <UsersField label="Users" name="users" />
+                    <UserField label="User" name="user" />
                 </Form>
             </main>
         </>
