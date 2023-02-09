@@ -17,7 +17,7 @@ export const UserField: React.FC<UserFieldProps> = ({ label, name }) => {
         <FieldGroup name={name}>
             <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                 <TextField label="First Name" name="firstName" required />
-                <TextField label="Last Name" name="lastName" />
+                <TextField label="Last Name" name="lastName" required />
             </div>
         </FieldGroup>
     );

@@ -110,10 +110,11 @@ interface FieldGroupProps<TValue> {
     name: string;
     validators?: Validator[];
     children: React.ReactNode | (
-        (
+        (field: {
             value: TValue,
+            onChange: (value: TValue) => void,
             errors: string[],
-        ) => React.ReactNode
+        }) => React.ReactNode
     );
 }
 
@@ -128,6 +129,10 @@ export function FieldGroup<TValue>({
         setFieldValue: setOwnFieldValue,
         fieldErrors: parentFieldErrors,
     } = useFormValue();
+
+    const onChange = useCallback((value: TValue) => {
+        setOwnFieldValue(ownName, value);
+    }, [ownName, setOwnFieldValue]);
 
     const field = useMemo(() => ({ name: ownName, validators }), [ownName, validators]);
     useEffect(() => {
@@ -180,131 +185,12 @@ export function FieldGroup<TValue>({
                 fieldErrors,
             }}
         >
-            {typeof children === 'function' ? children(
-                ownValue,
-                parentFieldErrors[ownName],
-            ) : children}
+            {typeof children === 'function' ? children({
+                value: ownValue,
+                onChange,
+                errors: parentFieldErrors[ownName],
+            }) : children}
         </context.Provider>
-    );
-}
-
-interface FieldGroupListOldProps<TValue> {
-    name: string;
-    renderItem: (value: TValue) => React.ReactNode;
-    validators?: Validator[];
-    children: (
-        (
-            items: TValue[],
-            renderItem: (item: TValue) => React.ReactNode,
-            fieldState: {
-                value: TValue[];
-                errors: string[];
-            },
-        ) => React.ReactNode
-    );
-}
-
-function noop() {}
-
-export function FieldGroupListOld<TValue>({
-    name: ownName,
-    renderItem,
-    validators = emptyValidators,
-    children,
-}: FieldGroupListOldProps<TValue>) {
-    const {
-        registerField: registerOwnField,
-        value: parentValue,
-        setFieldValue: setOwnFieldValue,
-        fieldErrors: parentFieldErrors,
-    } = useFormValue();
-
-    const field = useMemo(() => ({ name: ownName, validators }), [ownName, validators]);
-    useEffect(() => {
-        const unregister = registerOwnField(ownName, field);
-        return unregister;
-    }, [registerOwnField, ownName, field]);
-
-    const parentValueRef = useRef(parentValue);
-    parentValueRef.current = parentValue;
-    const setFieldValue = useCallback((name: string, value: TValue) => {
-        setOwnFieldValue(
-            ownName,
-            {
-                ...parentValueRef.current[ownName],
-                [name]: value,
-            },
-        );
-    }, [ownName, setOwnFieldValue]);
-
-    const ownValue = parentValue[ownName] as TValue[];
-
-    const [fields, setFields] = useState<{ [name: string]: Field }>({});
-    const fieldsRegisteredRef = useRef(false);
-    fieldsRegisteredRef.current = false;
-    const registerField = useCallback((name: string, field: Field) => {
-        if (fieldsRegisteredRef.current) {
-            return noop;
-        }
-        setFields((prevState) => ({ ...prevState, [name]: field }));
-        return () => {
-            setFields((prevState) => {
-                const newState = { ...prevState };
-                delete newState[name];
-                return newState;
-            });
-        };
-    }, []);
-
-    const fieldErrorsList: any[] = [];
-    for (const itemValue of ownValue) {
-        const fieldErrors: any = {};
-        fieldErrorsList.push(fieldErrors);
-        for (const fieldName of Object.keys(fields)) {
-            const fieldValue = (itemValue as any)[fieldName];
-            const field = fields[fieldName];
-            const messages: string[] = [];
-            if (field) {
-                for (const validator of field.validators) {
-                    if (validator.validate(fieldValue, itemValue) === false) {
-                        messages.push(validator.message);
-                    }
-                }
-            }
-            fieldErrors[fieldName] = messages;
-        }
-    }
-
-    return (
-        <>
-            {children(
-                ownValue,
-                (item: TValue) => {
-                    const itemIndex = ownValue.indexOf(item);
-                    if (itemIndex < 0) {
-                        return null;
-                    }
-                    const renderedItem = (
-                        <context.Provider
-                            value={{
-                                registerField,
-                                value: item,
-                                setFieldValue,
-                                fieldErrors: fieldErrorsList[itemIndex],
-                            }}
-                        >
-                            {renderItem(item)}
-                        </context.Provider>
-                    );
-                    fieldsRegisteredRef.current = true;
-                    return renderedItem;
-                },
-                {
-                    value: ownValue,
-                    errors: parentFieldErrors[ownName],
-                },
-            )}
-        </>
     );
 }
 
@@ -313,10 +199,11 @@ interface FieldGroupListProps<TValue> {
     getItemName: (item: TValue, itemIndex: number) => string,
     validators?: Validator[];
     children: React.ReactNode | (
-        (
+        (field: {
             value: TValue[],
+            onChange: (value: TValue[]) => void,
             errors: string[],
-        ) => React.ReactNode
+        }) => React.ReactNode
     );
 }
 
@@ -332,6 +219,10 @@ export function FieldGroupList<TValue>({
         setFieldValue: setOwnFieldValue,
         fieldErrors: parentFieldErrors,
     } = useFormValue();
+
+    const onChange = useCallback((value: TValue[]) => {
+        setOwnFieldValue(ownName, value);
+    }, [ownName, setOwnFieldValue]);
 
     const field = useMemo(() => ({ name: ownName, validators }), [ownName, validators]);
     useEffect(() => {
@@ -399,10 +290,11 @@ export function FieldGroupList<TValue>({
                 fieldErrors,
             }}
         >
-            {typeof children === 'function' ? children(
-                ownRawValue,
-                parentFieldErrors[ownName],
-            ) : children}
+            {typeof children === 'function' ? children({
+                value: ownRawValue,
+                onChange,
+                errors: parentFieldErrors[ownName],
+            }) : children}
         </context.Provider>
     );
 }

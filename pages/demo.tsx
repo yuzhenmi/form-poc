@@ -12,11 +12,7 @@ interface Value {
 export default function Demo() {
     const [value, setValue] = useState<Value>({
         user: { firstName: '', lastName: '' },
-        users: [
-            { firstName: '', lastName: '' },
-            { firstName: '', lastName: '' },
-            { firstName: '', lastName: '' },
-        ],
+        users: [],
     });
     return (
         <>
@@ -28,8 +24,40 @@ export default function Demo() {
             </Head>
             <main>
                 <Form<Value> value={value} onChange={setValue}>
-                    <UserField label="User" name="user" />
-                    <UsersField label="Users" name="users" />
+                    <div
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '32px',
+                            maxWidth: '800px',
+                            padding: '32px',
+                        }}>
+                        <div>
+                            <div
+                                style={{
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                    marginBottom: '16px',
+                                }}
+                            >
+                                Field Group Demo
+                            </div>
+                            <UserField label="User" name="user" />
+                        </div>
+                        <hr />
+                        <div>
+                            <div
+                                style={{
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                    marginBottom: '16px',
+                                }}
+                            >
+                                Field Group List Demo
+                            </div>
+                            <UsersField label="Users" name="users" />
+                        </div>
+                    </div>
                 </Form>
             </main>
         </>
